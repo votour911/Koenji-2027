@@ -196,7 +196,7 @@ const LINKEDIN = [
 ];
 
 const SOURCES_DEFAULT = [
-  { id:1,  name:"Marriott / Bvlgari", url:"https://jobs.marriott.com/marriott/jobs?location=Tokyo%2C+Japan", cat:"Hôtellerie", on:true },
+  { id:1,  name:"Marriott (tous hôtels Tokyo)", url:"https://jobs.marriott.com/marriott/jobs?location=Tokyo%2C+Japan", cat:"Hôtellerie", on:true },
   { id:2,  name:"Four Seasons Tokyo", url:"https://jobs.fourseasons.com/search-jobs/Tokyo/Japan/34698/1/2/country-JP/35.6762/139.6503/50/relevance", cat:"Hôtellerie", on:true },
   { id:3,  name:"Hyatt via Glassdoor", url:"https://www.glassdoor.com/Jobs/Hyatt-Tokyo-Jobs-EI_IE2941.0,5_IL.6,11_IC2286092.htm", cat:"Hôtellerie", on:true },
   { id:4,  name:"Accor Careers", url:"https://careers.accor.com/global/en/search#?&location[0]=Tokyo,Japan", cat:"Hôtellerie", on:true },
@@ -205,7 +205,6 @@ const SOURCES_DEFAULT = [
   { id:7,  name:"Aman Tokyo", url:"https://careers.aman.com/jobs?location=Tokyo", cat:"Hôtellerie", on:true },
   { id:8,  name:"Peninsula Tokyo", url:"https://careers.peninsula.com/en/jobs?location=Tokyo", cat:"Hôtellerie", on:true },
   { id:9,  name:"Soho House Tokyo", url:"https://www.sohohouse.com/jobs?location=tokyo", cat:"Hôtellerie", on:true },
-  { id:10, name:"JW Marriott Tokyo 2026", url:"https://jobs.marriott.com/marriott/jobs?location=JW+Marriott+Tokyo", cat:"Hôtellerie", on:true },
   { id:11, name:"Hilton via Indeed JP", url:"https://jp.indeed.com/jobs?q=Hilton+Tokyo+coordinator&l=Tokyo&lang=en", cat:"Hôtellerie", on:true },
   { id:20, name:"LVMH Japan", url:"https://www.lvmh.com/careers/job-offers/?search=&country=JP", cat:"Luxe", on:true },
   { id:21, name:"Kering Japan", url:"https://www.kering.com/en/careers/job-opportunities/?location=Japan", cat:"Luxe", on:true },
@@ -355,10 +354,13 @@ PROFIL CANDIDAT :
 - Profil junior post-études
 
 POSTES CIBLÉS (junior uniquement) :
-Coordinator, Associate, Assistant, Officer, Supervisor — dans : sales/revenue, guest relations, event coordination, F&B operations, artist/talent relations, partnerships, business development, concierge, front office
+- Tous domaines : Coordinator, Associate, Assistant, Officer, Supervisor — sales/revenue, guest relations, event coordination, artist/talent relations, partnerships, business development, concierge, front office
+- F&B uniquement : postes opérationnels acceptés aussi (commis, chef de partie, outlet supervisor, bartender dans établissement premium)
 
 EXCLUSIONS ABSOLUES :
 Director, Head of, VP, Senior Manager, General Manager, Executive Chef, IT, Finance, Legal, Engineering — et tout poste nécessitant japonais N1/N2 obligatoire
+
+IMPORTANT : max 12 sources par scan pour éviter les timeouts. Si plus de 12 sources sélectionnées, priorise dans l'ordre : Musique & Events → Hôtellerie → Agrégateurs → Luxe.
 
 SOURCES (visite chaque URL) :
 ${sourceLines}
