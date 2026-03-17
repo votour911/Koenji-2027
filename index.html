@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tokyo Job Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ede6;
+    --muted: #888;
+    --accent: #c8a96e;
+    --accent2: #8fb8a0;
+    --red: #e07070;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Shippori Mincho', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 2rem; border-bottom: 1px solid var(--border); }
+  .logo { font-family: var(--serif); font-size: 17px; letter-spacing: 0.02em; color: var(--accent); }
+  .logo span { color: var(--muted); font-size: 12px; font-family: var(--mono); margin-left: 12px; }
+  .api-row { display: flex; align-items: center; gap: 8px; }
+  .api-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+  .api-dot.ok { background: var(--accent2); }
+  .api-dot.err { background: var(--red); }
+  .api-label { font-size: 11px; color: var(--muted); }
+
+  .main { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+  .setup-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 4px; padding: 1.5rem; margin-bottom: 2rem; }
+  .setup-card h2 { font-family: var(--serif); font-size: 14px; color: var(--accent); margin-bottom: 1rem; font-weight: 600; }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input { flex: 1; background: var(--bg); border: 1px solid var(--border2); border-radius: 3px; padding: 9px 12px; font-family: var(--mono); font-size: 12px; color: var(--text); outline: none; }
+  .input-row input:focus { border-color: var(--accent); }
+  .input-row input::placeholder { color: var(--muted); }
+  .btn { padding: 9px 18px; background: var(--accent); color: #0e0e0e; border: none; border-radius: 3px; font-family: var(--mono); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border2); opacity: 1; }
+
+  .sources-section { margin-bottom: 2rem; }
+  .sources-section h2 { font-family: var(--serif); font-size: 14px; color: var(--accent); margin-bottom: 1rem; font-weight: 600; }
+  .cat-group { margin-bottom: 1.2rem; }
+  .cat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .cat-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .sources-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .src-chip { padding: 5px 11px; border: 1px solid var(--border); border-radius: 2px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.15s; user-select: none; }
+  .src-chip:hover { border-color: var(--border2); color: var(--text); }
+  .src-chip.on { border-color: var(--accent); color: var(--accent); background: rgba(200,169,110,0.07); }
+  .src-chip.on.music { border-color: var(--accent2); color: var(--accent2); background: rgba(143,184,160,0.07); }
+
+  .scan-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 2rem; padding: 1rem 1.5rem; background: var(--surface); border: 1px solid var(--border2); border-radius: 4px; }
+  .scan-bar .big-btn { padding: 11px 28px; font-size: 13px; flex-shrink: 0; }
+  .status-text { font-size: 12px; color: var(--muted); flex: 1; }
+  .status-text.scanning { color: var(--accent); }
+  .status-text.done { color: var(--accent2); }
+  .status-text.err { color: var(--red); }
+  .blink { animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .results { }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .results-title { font-family: var(--serif); font-size: 14px; color: var(--accent); }
+  .filter-tabs { display: flex; gap: 4px; }
+  .ftab { padding: 4px 10px; font-size: 11px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; color: var(--muted); background: transparent; font-family: var(--mono); }
+  .ftab.on { border-color: var(--accent2); color: var(--accent2); background: rgba(143,184,160,0.07); }
+
+  .job-list { display: flex; flex-direction: column; gap: 8px; }
+  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.2rem; transition: border-color 0.15s; }
+  .job-card:hover { border-color: var(--border2); }
+  .job-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .job-title { font-family: var(--serif); font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--text); }
+  .job-link { font-size: 11px; color: var(--accent); text-decoration: none; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+  .job-link:hover { text-decoration: underline; }
+  .job-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .tag { padding: 2px 8px; border-radius: 2px; font-size: 10px; letter-spacing: 0.05em; }
+  .tag-co { background: rgba(200,169,110,0.12); color: var(--accent); }
+  .tag-dept { background: rgba(255,255,255,0.05); color: var(--muted); }
+  .tag-new { background: rgba(143,184,160,0.15); color: var(--accent2); }
+  .tag-jp { background: rgba(224,112,112,0.1); color: var(--red); }
+  .job-desc { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.7; }
+
+  .empty { text-align: center; padding: 4rem 1rem; color: var(--muted); font-size: 13px; }
+  .empty .big { font-family: var(--serif); font-size: 22px; color: rgba(255,255,255,0.1); margin-bottom: 8px; }
+
+  .linkedin-section { margin-bottom: 2rem; }
+  .linkedin-section h2 { font-family: var(--serif); font-size: 14px; color: var(--accent); margin-bottom: 1rem; font-weight: 600; }
+  .ll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 6px; }
+  .ll-link { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; text-decoration: none; color: var(--text); transition: border-color 0.15s; }
+  .ll-link:hover { border-color: var(--accent2); }
+  .ll-name { font-size: 12px; }
+  .ll-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .ll-arr { font-size: 11px; color: var(--accent2); flex-shrink: 0; }
+
+  .add-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .add-row input, .add-row select { background: var(--bg); border: 1px solid var(--border2); border-radius: 3px; padding: 7px 10px; font-family: var(--mono); font-size: 11px; color: var(--text); outline: none; }
+  .add-row input:focus { border-color: var(--accent); }
+  .add-row input::placeholder { color: var(--muted); }
+  .add-row select option { background: var(--bg); }
+
+  .note { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.6; padding: 8px 12px; border-left: 2px solid var(--border2); }
+
+  .tabs-main { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+  .tab-main { padding: 10px 18px; font-size: 12px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: var(--mono); }
+  .tab-main.on { color: var(--accent); border-bottom-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">東京 Job Scanner <span>hospitality × music × luxury</span></div>
+  <div class="api-row">
+    <div class="api-dot" id="api-dot"></div>
+    <span class="api-label" id="api-label">clé non configurée</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="setup-card">
+    <h2>// Clé API Anthropic</h2>
+    <div class="input-row">
+      <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off" />
+      <button class="btn" onclick="saveKey()">Enregistrer</button>
+      <button class="btn btn-ghost" onclick="clearKey()">Effacer</button>
+    </div>
+    <div class="note">La clé reste dans ton navigateur (localStorage). Elle n'est jamais envoyée ailleurs qu'à api.anthropic.com.</div>
+  </div>
+
+  <div class="tabs-main">
+    <div class="tab-main on" onclick="switchTab('scan')">Scanner</div>
+    <div class="tab-main" onclick="switchTab('linkedin')">LinkedIn</div>
+  </div>
+
+  <div id="tab-scan">
+    <div class="sources-section">
+      <h2>// Sources <span style="font-size:11px;color:var(--muted);font-family:var(--mono)" id="src-count"></span></h2>
+      <div id="cats-container"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="toggleAll(true)">tout activer</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="toggleAll(false)">tout désactiver</button>
+      </div>
+      <div class="note" style="margin-top:10px">Ajouter une source :</div>
+      <div class="add-row">
+        <input id="new-url" placeholder="https://careers.example.com" style="flex:1;min-width:180px" />
+        <input id="new-name" placeholder="Nom" style="max-width:130px" />
+        <select id="new-cat">
+          <option>Hôtellerie</option><option>Luxe</option><option>F&B</option><option>Musique & Events</option><option>Agrégateurs</option>
+        </select>
+        <button class="btn" style="font-size:11px;padding:7px 14px" onclick="addSource()">+ Ajouter</button>
+      </div>
+    </div>
+
+    <div class="scan-bar">
+      <button class="btn big-btn" id="scan-btn" onclick="startScan()">▶ Scanner Tokyo</button>
+      <div class="status-text" id="status-text">Prêt — configure ta clé API puis lance le scan</div>
+    </div>
+
+    <div class="results" id="results-section" style="display:none">
+      <div class="results-header">
+        <div class="results-title" id="results-title">Résultats</div>
+        <div class="filter-tabs" id="filter-tabs"></div>
+      </div>
+      <div class="job-list" id="job-list"></div>
+    </div>
+  </div>
+
+  <div id="tab-linkedin" style="display:none">
+    <div class="linkedin-section">
+      <h2>// Recherches LinkedIn — ouvre directement avec les bons filtres</h2>
+      <div class="ll-grid" id="ll-grid"></div>
+      <div class="note" style="margin-top:1rem">Sur LinkedIn, filtre ensuite par "Entry level" ou "Associate". Active les alertes email sur chaque recherche pour être notifié automatiquement.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const LINKEDIN = [
+  { title: "Coordinator hospitality luxury", sub: "Entry level, hotels Tokyo", url: "https://www.linkedin.com/jobs/search/?keywords=coordinator%20hospitality%20luxury&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD" },
+  { title: "Sales coordinator hotel Tokyo", sub: "Revenue, reservations, sales support", url: "https://www.linkedin.com/jobs/search/?keywords=sales%20coordinator%20hotel&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD" },
+  { title: "Guest relations Tokyo luxury", sub: "Guest experience, concierge, front desk", url: "https://www.linkedin.com/jobs/search/?keywords=guest%20relations%20hotel&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD" },
+  { title: "Event coordinator music Tokyo", sub: "Events, artist relations, programming", url: "https://www.linkedin.com/jobs/search/?keywords=event%20coordinator%20music&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD" },
+  { title: "F&B coordinator supervisor", sub: "Food & beverage hotel Tokyo", url: "https://www.linkedin.com/jobs/search/?keywords=F%26B%20coordinator%20hotel&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD" },
+  { title: "Business development associate", sub: "Luxury, brand, partnerships Japan", url: "https://www.linkedin.com/jobs/search/?keywords=business%20development%20associate%20luxury&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD" },
+  { title: "Live music venue staff Tokyo", sub: "Live house, venue, programming", url: "https://www.linkedin.com/jobs/search/?keywords=live%20music%20venue%20coordinator&location=Tokyo%2C%20Japan&sortBy=DD" },
+  { title: "Hotel associate junior Tokyo 2026", sub: "All junior roles, recent postings", url: "https://www.linkedin.com/jobs/search/?keywords=hotel%20associate%20junior&location=Tokyo%2C%20Japan&f_E=1%2C2&sortBy=DD&f_TPR=r2592000" },
+];
+
+const SOURCES_DEFAULT = [
+  { id:1,  name:"Marriott / Bvlgari", url:"https://jobs.marriott.com/marriott/jobs?location=Tokyo%2C+Japan", cat:"Hôtellerie", on:true },
+  { id:2,  name:"Four Seasons Tokyo", url:"https://jobs.fourseasons.com/search-jobs/Tokyo/Japan/34698/1/2/country-JP/35.6762/139.6503/50/relevance", cat:"Hôtellerie", on:true },
+  { id:3,  name:"Hyatt via Glassdoor", url:"https://www.glassdoor.com/Jobs/Hyatt-Tokyo-Jobs-EI_IE2941.0,5_IL.6,11_IC2286092.htm", cat:"Hôtellerie", on:true },
+  { id:4,  name:"Accor Careers", url:"https://careers.accor.com/global/en/search#?&location[0]=Tokyo,Japan", cat:"Hôtellerie", on:true },
+  { id:5,  name:"Rosewood Tokyo", url:"https://careers.rosewoodhotels.com/en/jobs?location=Tokyo", cat:"Hôtellerie", on:true },
+  { id:6,  name:"Mandarin Oriental", url:"https://www.mandarinoriental.com/en/careers/search?location=Tokyo", cat:"Hôtellerie", on:true },
+  { id:7,  name:"Aman Tokyo", url:"https://careers.aman.com/jobs?location=Tokyo", cat:"Hôtellerie", on:true },
+  { id:8,  name:"Peninsula Tokyo", url:"https://careers.peninsula.com/en/jobs?location=Tokyo", cat:"Hôtellerie", on:true },
+  { id:9,  name:"Soho House Tokyo", url:"https://www.sohohouse.com/jobs?location=tokyo", cat:"Hôtellerie", on:true },
+  { id:10, name:"JW Marriott Tokyo 2026", url:"https://jobs.marriott.com/marriott/jobs?location=JW+Marriott+Tokyo", cat:"Hôtellerie", on:true },
+  { id:11, name:"Hilton via Indeed JP", url:"https://jp.indeed.com/jobs?q=Hilton+Tokyo+coordinator&l=Tokyo&lang=en", cat:"Hôtellerie", on:true },
+  { id:20, name:"LVMH Japan", url:"https://www.lvmh.com/careers/job-offers/?search=&country=JP", cat:"Luxe", on:true },
+  { id:21, name:"Kering Japan", url:"https://www.kering.com/en/careers/job-opportunities/?location=Japan", cat:"Luxe", on:true },
+  { id:22, name:"Ralph Lauren Japan", url:"https://careers.ralphlauren.com/TGWebHost/searchjobs.aspx?Keyword=Tokyo", cat:"Luxe", on:true },
+  { id:23, name:"Richemont Japan", url:"https://www.richemont.com/en/careers/search-and-apply/?country=Japan", cat:"Luxe", on:true },
+  { id:24, name:"Hermès Japan", url:"https://careers.hermes.com/japan", cat:"Luxe", on:true },
+  { id:25, name:"Chanel Japan", url:"https://www.chanel.com/jp/careers/", cat:"Luxe", on:true },
+  { id:40, name:"Blue Note Tokyo", url:"https://www.bluenote.co.jp/tokyo/info/staff.html", cat:"Musique & Events", on:true },
+  { id:41, name:"Cotton Club Tokyo", url:"https://www.cottonclubjapan.co.jp/jp/info/staff/", cat:"Musique & Events", on:true },
+  { id:42, name:"Billboard Live Tokyo", url:"https://www.billboard-live.com/tokyo/info/recruitment.html", cat:"Musique & Events", on:true },
+  { id:43, name:"Creativeman", url:"https://www.creativeman.co.jp/company/recruit/", cat:"Musique & Events", on:true },
+  { id:44, name:"Smash Corp", url:"https://smash-jpn.com/recruit/", cat:"Musique & Events", on:true },
+  { id:45, name:"Avex Group", url:"https://avex.com/ja_jp/company/recruit/", cat:"Musique & Events", on:true },
+  { id:46, name:"Sony Music Japan", url:"https://www.sonymusic.co.jp/eng/recruit/", cat:"Musique & Events", on:true },
+  { id:47, name:"Universal Music JP", url:"https://www.universalmusicgroup.com/ja/careers/", cat:"Musique & Events", on:true },
+  { id:48, name:"Warner Music Japan", url:"https://www.wmg.co.jp/recruit/", cat:"Musique & Events", on:true },
+  { id:49, name:"LiveNation Japan", url:"https://jobs.livenation.com/?location=Japan", cat:"Musique & Events", on:true },
+  { id:50, name:"teamLab", url:"https://www.teamlab.art/en/careers/", cat:"Musique & Events", on:true },
+  { id:51, name:"W Tokyo", url:"https://jobs.marriott.com/marriott/jobs?location=W+Tokyo", cat:"Musique & Events", on:true },
+  { id:60, name:"Daijob.com", url:"https://www.daijob.com/en/jobs/search?keyword=hospitality+tokyo", cat:"Agrégateurs", on:true },
+  { id:61, name:"Indeed JP (EN)", url:"https://jp.indeed.com/jobs?q=hospitality+coordinator&l=Tokyo&lang=en", cat:"Agrégateurs", on:true },
+  { id:62, name:"Glassdoor Tokyo", url:"https://www.glassdoor.com/Job/tokyo-hospitality-jobs-SRCH_IL.0,5_IC2286092_KO6,17.htm", cat:"Agrégateurs", on:true },
+  { id:63, name:"GaijinPot Jobs", url:"https://jobs.gaijinpot.com/index/index/search?city%5B%5D=8&category%5B%5D=10", cat:"Agrégateurs", on:true },
+  { id:64, name:"Jobs in Japan", url:"https://www.jobsinjapan.com/job-listings/?location=tokyo&industry=hospitality", cat:"Agrégateurs", on:true },
+];
+
+const CAT_COLORS = {
+  "Hôtellerie": "#c8a96e",
+  "Luxe": "#d4aa7d",
+  "F&B": "#8fb8a0",
+  "Musique & Events": "#9eb8d4",
+  "Agrégateurs": "#888",
+};
+
+let sources = (() => { try { return JSON.parse(localStorage.getItem('tj_v4_sources')) || SOURCES_DEFAULT; } catch(e) { return SOURCES_DEFAULT; }})();
+let jobs = (() => { try { return JSON.parse(localStorage.getItem('tj_v4_jobs')) || []; } catch(e) { return []; }})();
+let activeFilter = 'all';
+let scanning = false;
+
+function saveData() {
+  try { localStorage.setItem('tj_v4_sources', JSON.stringify(sources)); localStorage.setItem('tj_v4_jobs', JSON.stringify(jobs)); } catch(e){}
+}
+
+function saveKey() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if(!k.startsWith('sk-ant-')) { setApiStatus('err', 'format invalide'); return; }
+  localStorage.setItem('tj_v4_key', k);
+  document.getElementById('api-key-input').value = '••••••••••••••••••••••••';
+  setApiStatus('ok', 'clé enregistrée');
+}
+
+function clearKey() {
+  localStorage.removeItem('tj_v4_key');
+  document.getElementById('api-key-input').value = '';
+  setApiStatus('', 'clé supprimée');
+}
+
+function getKey() { return localStorage.getItem('tj_v4_key') || ''; }
+
+function setApiStatus(state, msg) {
+  const dot = document.getElementById('api-dot');
+  dot.className = 'api-dot' + (state ? ' '+state : '');
+  document.getElementById('api-label').textContent = msg;
+}
+
+function switchTab(t) {
+  document.getElementById('tab-scan').style.display = t==='scan'?'block':'none';
+  document.getElementById('tab-linkedin').style.display = t==='linkedin'?'block':'none';
+  document.querySelectorAll('.tab-main').forEach((el,i) => el.classList.toggle('on', ['scan','linkedin'][i]===t));
+  if(t==='linkedin') renderLinkedin();
+}
+
+function renderLinkedin() {
+  document.getElementById('ll-grid').innerHTML = LINKEDIN.map(l=>`
+    <a class="ll-link" href="${l.url}" target="_blank">
+      <div><div class="ll-name">${l.title}</div><div class="ll-sub">${l.sub}</div></div>
+      <div class="ll-arr">↗</div>
+    </a>`).join('');
+}
+
+function renderSources() {
+  const cats = [...new Set(SOURCES_DEFAULT.map(s=>s.cat))];
+  const activeCount = sources.filter(s=>s.on).length;
+  document.getElementById('src-count').textContent = `(${activeCount}/${sources.length} actives)`;
+  document.getElementById('cats-container').innerHTML = cats.map(cat => {
+    const catSrcs = sources.filter(s=>s.cat===cat);
+    const color = CAT_COLORS[cat]||'#888';
+    const isMusic = cat === 'Musique & Events';
+    return `<div class="cat-group">
+      <div class="cat-label" style="color:${color}">${cat} <span style="color:var(--muted);font-size:10px">${catSrcs.filter(s=>s.on).length}/${catSrcs.length}</span></div>
+      <div class="sources-grid">
+        ${catSrcs.map(s=>`<div class="src-chip ${s.on?(isMusic?'on music':'on'):''}" onclick="toggleSrc(${s.id})">${s.name}</div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSrc(id) {
+  sources = sources.map(s=>s.id===id?{...s,on:!s.on}:s);
+  saveData(); renderSources();
+}
+
+function toggleAll(val) {
+  sources = sources.map(s=>({...s,on:val}));
+  saveData(); renderSources();
+}
+
+function addSource() {
+  const url = document.getElementById('new-url').value.trim();
+  const name = document.getElementById('new-name').value.trim();
+  const cat = document.getElementById('new-cat').value;
+  if(!url||!name) return;
+  sources.push({ id: Date.now(), name, url, cat, on:true });
+  saveData(); renderSources();
+  document.getElementById('new-url').value=''; document.getElementById('new-name').value='';
+}
+
+function setStatus(cls, msg) {
+  const el = document.getElementById('status-text');
+  el.className = 'status-text' + (cls?' '+cls:'');
+  el.innerHTML = msg;
+}
+
+async function startScan() {
+  if(scanning) return;
+  const key = getKey();
+  if(!key) { setStatus('err','Configure ta clé API d\'abord'); return; }
+  const active = sources.filter(s=>s.on);
+  if(!active.length) { setStatus('err','Sélectionne au moins une source'); return; }
+
+  scanning = true;
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('results-section').style.display = 'none';
+  jobs = [];
+
+  const byCat = {};
+  active.forEach(s=>{ if(!byCat[s.cat]) byCat[s.cat]=[]; byCat[s.cat].push(s); });
+  const sourceLines = Object.entries(byCat).map(([cat,srcs])=>`\n[${cat}]\n`+srcs.map(s=>`- ${s.name}: ${s.url}`).join('\n')).join('\n');
+
+  const prompt = `Tu es un assistant de recherche d'emploi spécialisé Japon/Tokyo.
+
+PROFIL CANDIDAT :
+- MSc IMHI ESSEC (hospitality management international, 2e année)
+- Expérience opérationnelle hôtelière + stage commercial Four Seasons Tokyo
+- Objectif CDI Tokyo : intersection hospitality + musique/événementiel + luxe
+- Japonais N3 (préparation N2) — peut travailler en environnement partiellement japonophone
+- Profil junior post-études
+
+POSTES CIBLÉS (junior uniquement) :
+Coordinator, Associate, Assistant, Officer, Supervisor — dans : sales/revenue, guest relations, event coordination, F&B operations, artist/talent relations, partnerships, business development, concierge, front office
+
+EXCLUSIONS ABSOLUES :
+Director, Head of, VP, Senior Manager, General Manager, Executive Chef, IT, Finance, Legal, Engineering — et tout poste nécessitant japonais N1/N2 obligatoire
+
+SOURCES (visite chaque URL) :
+${sourceLines}
+
+INSTRUCTIONS :
+1. Visite chaque URL avec ton accès web
+2. Extrait UNIQUEMENT les offres basées à Tokyo / région Kanto
+3. Filtre strictement : junior/coordinator/associate uniquement
+4. Pour chaque offre : titre exact, entreprise, département, type contrat, lien direct, exigence japonais si mentionnée, si récente (<30j)
+5. Groupe par catégorie — priorité : Musique & Events → Hôtellerie → Luxe → Agrégateurs
+6. Sites inaccessibles : liste rapide en fin de réponse, ne t'y attarde pas
+
+Réponds UNIQUEMENT en JSON : {"jobs":[{"title":"","company":"","cat":"","dept":"","type":"","url":"","jp":"","isNew":false,"desc":""}], "dead":["site1","site2"]}`;
+
+  setStatus('scanning', '<span class="blink">▋</span> Scan en cours — Claude visite les sites...');
+
+  try {
+    const res = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if(!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    let parsed = null;
+    const match = textBlocks.match(/\{[\s\S]*"jobs"[\s\S]*\}/);
+    if(match) { try { parsed = JSON.parse(match[0]); } catch(e){} }
+    if(!parsed) { const clean = textBlocks.replace(/```json|```/g,'').trim(); try { parsed = JSON.parse(clean); } catch(e){} }
+
+    if(parsed && parsed.jobs) {
+      jobs = parsed.jobs;
+      saveData();
+      const dead = parsed.dead || [];
+      setStatus('done', `✓ ${jobs.length} offre${jobs.length>1?'s':''} trouvée${jobs.length>1?'s':''} à Tokyo${dead.length?' — '+dead.length+' sites inaccessibles':''}`);
+      renderResults();
+    } else {
+      setStatus('err', '! Aucune offre extraite — réessaie ou réduis le nombre de sources');
+    }
+  } catch(e) {
+    setStatus('err', '! Erreur : ' + e.message);
+  }
+
+  scanning = false;
+  document.getElementById('scan-btn').disabled = false;
+}
+
+function renderResults() {
+  const cats = ['all', ...new Set(jobs.map(j=>j.cat))];
+  document.getElementById('filter-tabs').innerHTML = cats.map(c=>`<button class="ftab ${activeFilter===c?'on':''}" onclick="setFilter('${c}')">${c==='all'?'tout':c}</button>`).join('');
+  document.getElementById('results-title').textContent = `// ${jobs.length} offre${jobs.length>1?'s':''} — Tokyo`;
+  document.getElementById('results-section').style.display = 'block';
+  renderJobList();
+}
+
+function setFilter(c) { activeFilter=c; document.querySelectorAll('.ftab').forEach((el,i)=>{ const cats=['all',...new Set(jobs.map(j=>j.cat))]; el.classList.toggle('on',cats[i]===c); }); renderJobList(); }
+
+function renderJobList() {
+  const filtered = activeFilter==='all' ? jobs : jobs.filter(j=>j.cat===activeFilter);
+  if(!filtered.length) { document.getElementById('job-list').innerHTML=`<div class="empty"><div class="big">東京</div>Aucun résultat pour ce filtre</div>`; return; }
+  document.getElementById('job-list').innerHTML = filtered.map(j=>`
+    <div class="job-card">
+      <div class="job-top">
+        <div>
+          <div class="job-title">${j.title}</div>
+          <div class="job-meta">
+            <span class="tag tag-co">${j.company}</span>
+            ${j.dept?`<span class="tag tag-dept">${j.dept}</span>`:''}
+            ${j.type?`<span class="tag tag-dept">${j.type}</span>`:''}
+            ${j.jp?`<span class="tag tag-jp">JP: ${j.jp}</span>`:''}
+            ${j.isNew?`<span class="tag tag-new">récent</span>`:''}
+          </div>
+        </div>
+        ${j.url?`<a href="${j.url}" class="job-link" target="_blank">voir l'offre ↗</a>`:''}
+      </div>
+      ${j.desc?`<div class="job-desc">${j.desc}</div>`:''}
+    </div>`).join('');
+}
+
+// Init
+const savedKey = getKey();
+if(savedKey) { setApiStatus('ok', 'clé configurée'); }
+renderSources();
+if(jobs.length) { renderResults(); setStatus('done', `✓ ${jobs.length} offres — dernier scan chargé`); }
+</script>
+</body>
+</html>
