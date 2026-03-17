@@ -344,36 +344,22 @@ async function startScan() {
   active.forEach(s=>{ if(!byCat[s.cat]) byCat[s.cat]=[]; byCat[s.cat].push(s); });
   const sourceLines = Object.entries(byCat).map(([cat,srcs])=>`\n[${cat}]\n`+srcs.map(s=>`- ${s.name}: ${s.url}`).join('\n')).join('\n');
 
-  const prompt = `Tu es un assistant de recherche d'emploi spécialisé Japon/Tokyo.
+  const prompt = `Search for job openings in Tokyo Japan on these websites. Use web search to visit each URL.
 
-PROFIL CANDIDAT :
-- MSc IMHI ESSEC (hospitality management international, 2e année)
-- Expérience opérationnelle hôtelière + stage commercial Four Seasons Tokyo
-- Objectif CDI Tokyo : intersection hospitality + musique/événementiel + luxe
-- Japonais N3 (préparation N2) — peut travailler en environnement partiellement japonophone
-- Profil junior post-études
+Candidate profile: MSc hospitality management graduate, junior level, internship at Four Seasons Tokyo sales department. Looking for CDI in Tokyo combining hospitality + music/events + luxury. Japanese N3 level.
 
-POSTES CIBLÉS (junior uniquement) :
-- Tous domaines : Coordinator, Associate, Assistant, Officer, Supervisor — sales/revenue, guest relations, event coordination, artist/talent relations, partnerships, business development, concierge, front office
-- F&B uniquement : postes opérationnels acceptés aussi (commis, chef de partie, outlet supervisor, bartender dans établissement premium)
+Target roles (JUNIOR ONLY - no managers, no directors):
+- Coordinator, Associate, Assistant, Officer, Supervisor in: sales, guest relations, events, F&B, artist relations, partnerships, concierge
+- F&B operational roles also ok (outlet supervisor, bartender at premium venue)
+- NO: Director, Manager, VP, Head of, Executive, IT, Finance, Legal
 
-EXCLUSIONS ABSOLUES :
-Director, Head of, VP, Senior Manager, General Manager, Executive Chef, IT, Finance, Legal, Engineering — et tout poste nécessitant japonais N1/N2 obligatoire
-
-IMPORTANT : max 12 sources par scan pour éviter les timeouts. Si plus de 12 sources sélectionnées, priorise dans l'ordre : Musique & Events → Hôtellerie → Agrégateurs → Luxe.
-
-SOURCES (visite chaque URL) :
+Sources to search:
 ${sourceLines}
 
-INSTRUCTIONS :
-1. Visite chaque URL avec ton accès web
-2. Extrait UNIQUEMENT les offres basées à Tokyo / région Kanto
-3. Filtre strictement : junior/coordinator/associate uniquement
-4. Pour chaque offre : titre exact, entreprise, département, type contrat, lien direct, exigence japonais si mentionnée, si récente (<30j)
-5. Groupe par catégorie — priorité : Musique & Events → Hôtellerie → Luxe → Agrégateurs
-6. Sites inaccessibles : liste rapide en fin de réponse, ne t'y attarde pas
+CRITICAL: You MUST respond with ONLY a JSON object, no other text, no markdown, no explanation.
+Format: {"jobs":[{"title":"job title","company":"company name","cat":"category","dept":"department","type":"contract type","url":"direct link","jp":"japanese requirement if any","isNew":true,"desc":"1 sentence description"}],"dead":["inaccessible site names"]}
 
-Réponds UNIQUEMENT en JSON : {"jobs":[{"title":"","company":"","cat":"","dept":"","type":"","url":"","jp":"","isNew":false,"desc":""}], "dead":["site1","site2"]}`;
+If no jobs found, return: {"jobs":[],"dead":[]}`;
 
   setStatus('scanning', '<span class="blink">▋</span> Scan en cours — Claude visite les sites...');
 
@@ -395,20 +381,24 @@ Réponds UNIQUEMENT en JSON : {"jobs":[{"title":"","company":"","cat":"","dept":
     }
 
     const data = await res.json();
-    const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    let allText = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    console.log('Raw response:', allText.slice(0,500));
     let parsed = null;
-    const match = textBlocks.match(/\{[\s\S]*"jobs"[\s\S]*\}/);
-    if(match) { try { parsed = JSON.parse(match[0]); } catch(e){} }
-    if(!parsed) { const clean = textBlocks.replace(/```json|```/g,'').trim(); try { parsed = JSON.parse(clean); } catch(e){} }
+    // try full text as JSON
+    try { parsed = JSON.parse(allText.trim()); } catch(e){}
+    // try stripping markdown
+    if(!parsed) { try { parsed = JSON.parse(allText.replace(/```json|```/g,'').trim()); } catch(e){} }
+    // try extracting JSON block
+    if(!parsed) { const m = allText.match(/\{[\s\S]*?"jobs"[\s\S]*?\}/); if(m) { try { parsed = JSON.parse(m[0]); } catch(e){} } }
 
-    if(parsed && parsed.jobs) {
+    if(parsed && Array.isArray(parsed.jobs)) {
       jobs = parsed.jobs;
       saveData();
       const dead = parsed.dead || [];
       setStatus('done', `✓ ${jobs.length} offre${jobs.length>1?'s':''} trouvée${jobs.length>1?'s':''} à Tokyo${dead.length?' — '+dead.length+' sites inaccessibles':''}`);
       renderResults();
     } else {
-      setStatus('err', '! Aucune offre extraite — réessaie ou réduis le nombre de sources');
+      setStatus('err', '! Réponse non parseable — F12 > Console pour voir la réponse brute');
     }
   } catch(e) {
     setStatus('err', '! Erreur : ' + e.message);
